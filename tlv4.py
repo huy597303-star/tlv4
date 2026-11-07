@@ -8,8 +8,6 @@ from telegram.ext import (
     Application,
     CommandHandler,
     CallbackQueryHandler,
-    MessageHandler,
-    filters,
     ContextTypes
 )
 
@@ -239,7 +237,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
 
-# Admin Handlers
+# ----------------- ADMIN COMMANDS ----------------- #
 async def admin_import_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         return
@@ -264,7 +262,72 @@ async def admin_import_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 count += 1
         conn.commit()
         conn.close()
-        await update.message.reply_text(f"✅ **Import thành công {count} tài khoản!**", parse_mode="Markdown")
+        await update.message.reply_text(f"✅ **Import thành công {count} tài khoản từ tệp!**", parse_mode="Markdown")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Lỗi: {e}")
+
+async def admin_add_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+    try:
+        text_input = " ".join(context.args)
+        if "|" not in text_input:
+            await update.message.reply_text("❌ Sai cú pháp! Dùng: `/themacc Tên sản phẩm | Thông_tin_acc`", parse_mode="Markdown")
+            return
+            
+        parts = text_input.split("|", 1)
+        product_name = parts[0].strip()
+        account_info = parts[1].strip()
+        
+        conn = sqlite3.connect("bot_store.db")
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO accounts (product_name, account_info, status)
+            VALUES (?, ?, 'AVAILABLE')
+        ''', (product_name, account_info))
+        conn.commit()
+        conn.close()
+        
+        await update.message.reply_text(
+            f"✅ **Thêm tài khoản thủ công thành công!**\n\n"
+            f"📌 **Sản phẩm:** `{product_name}`\n"
+            f"📋 **Thông tin:** `{account_info}`",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ Lỗi: {e}")
+
+async def admin_add_money(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+    try:
+        args = context.args
+        if len(args) < 2:
+            await update.message.reply_text("❌ Sai cú pháp! Dùng: `/cong [user_id] [số_tiền]`", parse_mode="Markdown")
+            return
+        
+        target_user_id = int(args[0])
+        amount = int(args[1])
+        
+        update_user_balance(target_user_id, amount)
+        new_balance = get_user_balance(target_user_id)
+        
+        await update.message.reply_text(
+            f"✅ **Cộng tiền thủ công thành công!**\n"
+            f"👤 User ID: `{target_user_id}`\n"
+            f"💰 Đã cộng: **+{amount:,} VNĐ**\n"
+            f"💳 Số dư mới: **{new_balance:,} VNĐ**",
+            parse_mode="Markdown"
+        )
+        
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=f"🎉 **Tài khoản của bạn đã được Admin cộng tiền!**\n\n💰 Số tiền: **+{amount:,} VNĐ**\n💳 Số dư mới: **{new_balance:,} VNĐ**",
+                parse_mode="Markdown"
+            )
+        except Exception:
+            pass
     except Exception as e:
         await update.message.reply_text(f"❌ Lỗi: {e}")
 
@@ -272,21 +335,17 @@ async def admin_import_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_sepay_webhook(request):
     try:
         data = await request.json()
-        # Data từ SePay chứa: transferAmount, content, transactionDate...
         amount = int(data.get("transferAmount", 0))
         content = data.get("content", "")
         
-        # Tìm Telegram ID trong nội dung chuyển khoản dạng "nap 123456789"
         match = re.search(r'nap\s*(\d+)', content, re.IGNORECASE)
         if match:
             target_user_id = int(match.group(1))
             update_user_balance(target_user_id, amount)
             new_balance = get_user_balance(target_user_id)
             
-            # Lấy instance của Telegram Bot để gửi thông báo
             bot = request.app['bot']
             
-            # Thông báo cho Khách hàng
             try:
                 await bot.send_message(
                     chat_id=target_user_id,
@@ -296,7 +355,6 @@ async def handle_sepay_webhook(request):
             except Exception:
                 pass
                 
-            # Thông báo cho Admin
             for admin_id in ADMIN_IDS:
                 try:
                     await bot.send_message(
@@ -316,8 +374,11 @@ async def handle_sepay_webhook(request):
 async def main():
     app = Application.builder().token(TOKEN).build()
 
+    # Đăng ký các lệnh User & Admin
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("import", admin_import_file))
+    app.add_handler(CommandHandler("themacc", admin_add_account))
+    app.add_handler(CommandHandler("cong", admin_add_money))
     app.add_handler(CallbackQueryHandler(button_handler))
 
     # Khởi tạo Telegram Bot Runner
@@ -325,7 +386,7 @@ async def main():
     await app.start()
     await app.updater.start_polling()
 
-    # Tạo server HTTP Webhook cho SePay lắng nghe cổng PORT của Railway
+    # Tạo server HTTP Webhook cho SePay
     web_app = web.Application()
     web_app['bot'] = app.bot
     web_app.router.add_post('/sepay-webhook', handle_sepay_webhook)
@@ -338,7 +399,6 @@ async def main():
     print(f"Bot & Webhook SePay đang chạy trên cổng {port}...")
     await site.start()
 
-    # Giữ ứng dụng chạy liên tục
     import asyncio
     await asyncio.Event().wait()
 
