@@ -1,6 +1,8 @@
 import sqlite3
 import re
 import logging
+import os
+from aiohttp import web
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -17,11 +19,12 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Cấu hình sẵn Token và Admin ID của bạn
+# ----------------- CẤU HÌNH HỆ THỐNG ----------------- #
 TOKEN = "9291585542:AAFkdq6uxLvRsZLI2NKyN4Dxr-rONDe0kdM"
 ADMIN_IDS = [9047366482]
+SEPAY_API_TOKEN = "9OAOWJ7EPNEIWSUMZ93V0OACREYI8U3JTFWS1LG7WVSK4DSCUCFZIX6XHFQNBE18"
 
-# Khởi tạo Database SQLite
+# ----------------- DATABASE ----------------- #
 def init_db():
     conn = sqlite3.connect("bot_store.db")
     cursor = conn.cursor()
@@ -66,6 +69,7 @@ def update_user_balance(user_id, amount):
     conn.commit()
     conn.close()
 
+# ----------------- TELEGRAM BOT HANDLERS ----------------- #
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     balance = get_user_balance(user_id)
@@ -149,14 +153,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         conn = sqlite3.connect("bot_store.db")
         cursor = conn.cursor()
-        
         cursor.execute('''
             SELECT id, account_info 
             FROM accounts 
             WHERE LOWER(product_name) = LOWER(?) AND status = 'AVAILABLE' 
             LIMIT 1
         ''', (product_name,))
-        
         acc = cursor.fetchone()
         
         if not acc:
@@ -165,7 +167,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         acc_id, account_info = acc
-        
         cursor.execute("UPDATE accounts SET status = 'SOLD' WHERE id = ?", (acc_id,))
         cursor.execute("UPDATE users SET balance = balance - ? WHERE user_id = ?", (PRICE_PER_ITEM, user_id))
         conn.commit()
@@ -196,15 +197,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "recharge":
         recharge_text = (
-            "💵 **HƯỚNG DẪN NẠP TIỀN**\n\n"
-            "Quý khách vui lòng chuyển khoản theo thông tin bên dưới:\n\n"
-            "💜 **MOMO:**\n"
-            "• Số điện thoại: `0869561613`\n"
-            "• Chủ tài khoản: **PHAM VAN TUNG**\n\n"
+            "💵 **HƯỚNG DẪN NẠP TIỀN TỰ ĐỘNG (24/7)**\n\n"
+            "Quý khách chuyển khoản theo thông tin bên dưới (Tiền sẽ được cộng tự động trong vài giây):\n\n"
             "💚 **VPBANK:**\n"
-            "• Số tài khoản: `0204098386`\n"
+            "• Số tài khoản: `020420098386`\n"
             "• Chủ tài khoản: **PHAM VAN TUNG**\n\n"
-            "📝 **Nội dung chuyển khoản:** `nap " + str(user_id) + "`"
+            "📝 **Nội dung chuyển khoản (Bắt buộc):** `nap " + str(user_id) + "`"
         )
         keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
         await query.edit_message_text(recharge_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -241,13 +239,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
 
-# ----------------- CÁC LỆNH VÀ TÍNH NĂNG ADMIN ----------------- #
-
-# 1. Lệnh import hàng loạt từ file danhsach.txt
+# Admin Handlers
 async def admin_import_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         return
-    
     try:
         with open("danhsach.txt", "r", encoding="utf-8") as f:
             lines = f.readlines()
@@ -255,12 +250,10 @@ async def admin_import_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn = sqlite3.connect("bot_store.db")
         cursor = conn.cursor()
         count = 0
-        
         for line in lines:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            
             parts = line.split("|", 1)
             if len(parts) == 2:
                 product_name, account_info = parts
@@ -269,173 +262,86 @@ async def admin_import_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     VALUES (?, ?, 'AVAILABLE')
                 ''', (product_name.strip(), account_info.strip()))
                 count += 1
-                
         conn.commit()
         conn.close()
-        
-        await update.message.reply_text(
-            f"✅ **Import thành công!**\n"
-            f"📦 Đã thêm vào kho: **{count}** tài khoản từ file `danhsach.txt`.",
-            parse_mode="Markdown"
-        )
-    except FileNotFoundError:
-        await update.message.reply_text(
-            "❌ Không tìm thấy file `danhsach.txt` trên server!\n"
-            "👉 Vui lòng tạo file `danhsach.txt` cùng thư mục với bot.",
-            parse_mode="Markdown"
-        )
+        await update.message.reply_text(f"✅ **Import thành công {count} tài khoản!**", parse_mode="Markdown")
     except Exception as e:
-        await update.message.reply_text(f"❌ Lỗi xử lý file: {e}")
+        await update.message.reply_text(f"❌ Lỗi: {e}")
 
-# 2. Tính năng tự động Check Bill và cộng tiền khi gửi ảnh/tin nhắn
-async def handle_bank_bill(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMIN_IDS:
-        return
-    
-    message = update.message
-    text_content = message.caption or message.text or ""
-    
-    if not text_content:
-        return
-
+# ----------------- SEPAY WEBHOOK SERVER ----------------- #
+async def handle_sepay_webhook(request):
     try:
-        amount_match = re.search(r'(?:[Tt][đd]|[Vv][Nn][Đd]|\b)?\s*([\d.,]+)(?:\s*(?:đ|vnđ|vnd|K))?\b', text_content)
-        user_id_match = re.search(r'\b(1[0-9]{8,9}|[0-9]{9,10})\b', text_content)
+        data = await request.json()
+        # Data từ SePay chứa: transferAmount, content, transactionDate...
+        amount = int(data.get("transferAmount", 0))
+        content = data.get("content", "")
         
-        if amount_match and user_id_match:
-            raw_amount = amount_match.group(1).replace('.', '').replace(',', '')
-            amount = int(raw_amount)
-            target_user_id = int(user_id_match.group(1))
-            
+        # Tìm Telegram ID trong nội dung chuyển khoản dạng "nap 123456789"
+        match = re.search(r'nap\s*(\d+)', content, re.IGNORECASE)
+        if match:
+            target_user_id = int(match.group(1))
             update_user_balance(target_user_id, amount)
             new_balance = get_user_balance(target_user_id)
             
-            await message.reply_text(
-                f"✅ **Auto Check Bill Thành Công!**\n"
-                f"👤 User ID: `{target_user_id}`\n"
-                f"💰 Đã cộng: **{amount:,} VNĐ**\n"
-                f"💳 Số dư mới: **{new_balance:,} VNĐ**",
-                parse_mode="Markdown"
-            )
+            # Lấy instance của Telegram Bot để gửi thông báo
+            bot = request.app['bot']
+            
+            # Thông báo cho Khách hàng
             try:
-                await context.bot.send_message(
+                await bot.send_message(
                     chat_id=target_user_id,
-                    text=f"🎉 **Bạn đã được cộng {amount:,} VNĐ vào tài khoản qua tự động check bill!**\n💳 Số dư mới: {new_balance:,} VNĐ",
+                    text=f"🎉 **NẠP TIỀN TỰ ĐỘNG THÀNH CÔNG!**\n\n💰 Số tiền nạp: **+{amount:,} VNĐ**\n💳 Số dư mới: **{new_balance:,} VNĐ**",
                     parse_mode="Markdown"
                 )
             except Exception:
                 pass
-        else:
-            if message.photo:
-                await message.reply_text("❌ Không đọc được rõ số tiền hoặc Telegram ID từ ảnh bill này.")
+                
+            # Thông báo cho Admin
+            for admin_id in ADMIN_IDS:
+                try:
+                    await bot.send_message(
+                        chat_id=admin_id,
+                        text=f"🔔 **Nạp tự động SePay:**\n👤 User ID: `{target_user_id}`\n💰 Đã cộng: **+{amount:,} VNĐ**\n📝 Nội dung: `{content}`",
+                        parse_mode="Markdown"
+                    )
+                except Exception:
+                    pass
+                    
+        return web.json_response({"status": "success"}, status=200)
     except Exception as e:
-        pass
+        logging.error(f"Lỗi xử lý SePay Webhook: {e}")
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
 
-# 3. Lệnh thêm thủ công từng tài khoản
-async def admin_add_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMIN_IDS:
-        return
-
-    text = update.message.text.strip()
-    parts = text.split(maxsplit=2)
-
-    if len(parts) < 3:
-        await update.message.reply_text(
-            "⚠️ **Sai cú pháp thêm hàng!**\n"
-            "👉 Cú pháp chuẩn: `thêm <tên_sản_phẩm> <thông_tin_tài_khoản>`\n"
-            "👉 Ví dụ: `thêm Gmail_Co hhakbauvak162@gmail.com|pass123|2fa`",
-            parse_mode="Markdown"
-        )
-        return
-
-    _, product_name, account_info = parts
-
-    conn = sqlite3.connect("bot_store.db")
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO accounts (product_name, account_info, status)
-        VALUES (?, ?, 'AVAILABLE')
-    ''', (product_name, account_info))
-    conn.commit()
-    
-    cursor.execute('''
-        SELECT COUNT(*) FROM accounts 
-        WHERE LOWER(product_name) = LOWER(?) AND status = 'AVAILABLE'
-    ''', (product_name,))
-    total_count = cursor.fetchone()[0]
-    conn.close()
-
-    await update.message.reply_text(
-        f"✅ **Thêm tài khoản vào kho thành công!**\n"
-        f"📦 Tên sản phẩm: `{product_name}`\n"
-        f"📊 Tổng kho `{product_name}` hiện có: **{total_count}**",
-        parse_mode="Markdown"
-    )
-
-# 4. Lệnh cộng tiền thủ công
-async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMIN_IDS:
-        return
-
-    text = update.message.text.strip()
-    parts = text.split(maxsplit=4)
-
-    if len(parts) < 5:
-        await update.message.reply_text(
-            "⚠️ **Sai cú pháp cộng tiền!**\n"
-            "👉 Cú pháp: `cộng <số_tiền> <id_khách> hoàn thành <lý do>`",
-            parse_mode="Markdown"
-        )
-        return
-
-    _, amount_str, target_uid_str, status_action, reason = parts
-
-    try:
-        amount = int(amount_str)
-        target_uid = int(target_uid_str)
-    except ValueError:
-        await update.message.reply_text("❌ Số tiền hoặc User ID phải là chữ số!")
-        return
-
-    if status_action.lower() in ["hoàn thành", "thành công", "ok"]:
-        update_user_balance(target_uid, amount)
-        new_balance = get_user_balance(target_uid)
-        
-        await update.message.reply_text(
-            f"✅ **Cộng tiền thành công!**\n"
-            f"👤 User ID: `{target_uid}`\n"
-            f"💰 Số tiền cộng: +{amount:,} VNĐ\n"
-            f"💳 Số dư mới: {new_balance:,} VNĐ",
-            parse_mode="Markdown"
-        )
-        try:
-            await context.bot.send_message(
-                chat_id=target_uid,
-                text=f"🎉 **Bạn đã được cộng {amount:,} VNĐ vào tài khoản!**\n📝 Lý do: {reason}\n💳 Số dư mới: {new_balance:,} VNĐ",
-                parse_mode="Markdown"
-            )
-        except Exception:
-            pass
-    else:
-        await update.message.reply_text(f"❌ Đã từ chối giao dịch của UID `{target_uid}`.", parse_mode="Markdown")
-
-def main():
+# ----------------- CHẠY ỨNG DỤNG ----------------- #
+async def main():
     app = Application.builder().token(TOKEN).build()
 
-    # Handlers cho người dùng
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("import", admin_import_file))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # Handlers cho Admin (Lệnh import file, thêm tài khoản, cộng tiền thủ công)
-    app.add_handler(CommandHandler("import", admin_import_file))
-    app.add_handler(MessageHandler(filters.Regex(r'^(thêm|Thêm)\s+'), admin_add_account))
-    app.add_handler(MessageHandler(filters.Regex(r'^(cộng|Cộng)\s+'), admin_add_balance))
+    # Khởi tạo Telegram Bot Runner
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
 
-    # Handler tự động check bill (ảnh hoặc tin nhắn của Admin chứa thông tin chuyển khoản)
-    app.add_handler(MessageHandler(filters.PHOTO | filters.TEXT & ~filters.COMMAND, handle_bank_bill))
+    # Tạo server HTTP Webhook cho SePay lắng nghe cổng PORT của Railway
+    web_app = web.Application()
+    web_app['bot'] = app.bot
+    web_app.router.add_post('/sepay-webhook', handle_sepay_webhook)
 
-    print("Bot Store Bảo Mật đang chạy...")
-    app.run_polling()
+    port = int(os.environ.get("PORT", 8080))
+    runner = web.AppRunner(web_app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    
+    print(f"Bot & Webhook SePay đang chạy trên cổng {port}...")
+    await site.start()
+
+    # Giữ ứng dụng chạy liên tục
+    import asyncio
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
