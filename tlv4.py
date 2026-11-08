@@ -143,11 +143,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         prices = {
             "gmail": 5000,       # Gmail giá 5k
             "facebook": 2000,    # Facebook giá 2k
-            "tiktok": 2000       # TikTok giá 2k
+            "tiktok": 1000,      # TikTok giá 2k
+            "installgram": 500,   # ig giá 500đ
+            "hotmail": 1500       # hotmail giá 1500đ 
         }
         
         # Mặc định 2,000đ nếu không khớp từ khóa nào
-        price_per_item = 2000
+        price_per_item = 500
         for key, val in prices.items():
             if key in product_name.lower():
                 price_per_item = val
