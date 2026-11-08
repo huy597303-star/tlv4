@@ -138,12 +138,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("buy_prod|"):
         product_name = data.split("|")[1]
-        PRICE_PER_ITEM = 2000
+        
+        # --- BẢNG GIÁ RIÊNG CHO TỪNG SẢN PHẨM ---
+        prices = {
+            "gmail": 5000,       # Gmail giá 5k
+            "facebook": 2000,    # Facebook giá 2k
+            "tiktok": 2000       # TikTok giá 2k
+        }
+        
+        # Mặc định 2,000đ nếu không khớp từ khóa nào
+        price_per_item = 2000
+        for key, val in prices.items():
+            if key in product_name.lower():
+                price_per_item = val
+                break
         
         user_balance = get_user_balance(user_id)
-        if user_balance < PRICE_PER_ITEM:
+        if user_balance < price_per_item:
             await query.edit_message_text(
-                f"❌ **Số dư không đủ!**\nSản phẩm: `{product_name}`\nGiá: {PRICE_PER_ITEM:,} VNĐ\nSố dư của bạn: {user_balance:,} VNĐ",
+                f"❌ **Số dư không đủ!**\nSản phẩm: `{product_name}`\nGiá: {price_per_item:,} VNĐ\nSố dư của bạn: {user_balance:,} VNĐ",
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💳 Nạp tiền", callback_data="recharge"), InlineKeyboardButton("🔙 Quay lại", callback_data="buy_menu")]])
             )
@@ -166,14 +179,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         acc_id, account_info = acc
         cursor.execute("UPDATE accounts SET status = 'SOLD' WHERE id = ?", (acc_id,))
-        cursor.execute("UPDATE users SET balance = balance - ? WHERE user_id = ?", (PRICE_PER_ITEM, user_id))
+        cursor.execute("UPDATE users SET balance = balance - ? WHERE user_id = ?", (price_per_item, user_id))
         conn.commit()
         conn.close()
 
         await query.edit_message_text(
             f"✅ **MUA TÀI KHOẢN THÀNH CÔNG!**\n\n"
             f"📌 **Sản phẩm:** `{product_name}`\n"
-            f"💰 **Trừ số dư:** {PRICE_PER_ITEM:,} VNĐ\n\n"
+            f"💰 **Trừ số dư:** {price_per_item:,} VNĐ\n\n"
             f"🔒 _Thông tin tài khoản bảo mật đã được gửi riêng vào tin nhắn cho bạn._",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Về trang chủ", callback_data="home")]])
