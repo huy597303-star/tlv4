@@ -216,7 +216,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
     elif data == "recharge":
-        # Tạo URL VietQR tự động điền sẵn nội dung chuyển khoản là user_id của khách
         qr_image_url = f"https://img.vietqr.io/image/vpb-020420098386-compact2.png?addInfo={user_id}&accountName=PHAM%20VAN%20TUNG"
         
         recharge_text = (
@@ -228,14 +227,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Nội dung: `" + str(user_id) + "`\n\n"
             "⚡ _Tiền sẽ được cộng tự động vào tài khoản sau vài giây kể từ khi giao dịch thành công!_"
         )
-        keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
+        keyboard = [[InlineKeyboardButton("🔙 Quay lại trang chủ", callback_data="home")]]
         
-        # Gửi tin nhắn ảnh QR mới, đồng thời xóa tin nhắn menu cũ để giao diện gọn gàng
-        try:
-            await query.message.delete()
-        except Exception:
-            pass
-            
         await context.bot.send_photo(
             chat_id=user_id,
             photo=qr_image_url,
@@ -243,6 +236,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
 
     elif data == "me":
         balance = get_user_balance(user_id)
@@ -275,17 +272,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Vui lòng chọn chức năng bên dưới:"
         )
         
-        # Dùng phương thức an toàn: nếu đang ở màn hình ảnh (Nạp tiền), xóa ảnh cũ và gửi tin nhắn menu chữ mới
-        try:
-            await query.message.delete()
-        except Exception:
-            pass
-            
         await context.bot.send_message(
             chat_id=user_id,
             text=text_home,
             reply_markup=reply_markup
         )
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
 
 # ----------------- ADMIN COMMANDS ----------------- #
 async def admin_import_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -452,3 +447,4 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
+    
