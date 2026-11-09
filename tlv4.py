@@ -223,7 +223,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Quý khách chuyển khoản theo thông tin bên dưới (Tiền sẽ được cộng tự động trong vài giây):\n\n"
             "💚 **VPBANK:**\n"
             "• Số tài khoản: `020420098386`\n"
-            "• Chủ tài khoản: **PHAM VAN TUNG**\n\n"
+            "• Chủ tài khoản: **PHAM VAN TUNG**\n"
             "• NDCK(Bắt buộc):** `nap " + str(user_id) + "`"
         )
         keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
