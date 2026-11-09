@@ -198,12 +198,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             await context.bot.send_message(
                 chat_id=user_id,
-                text=(
-                    f"🔑 **THÔNG TIN TÀI KHOẢN BẠN VỪA MUA:**\n\n"
-                    f"📌 **Sản phẩm:** `{product_name}`\n"
-                    f"📋 **Chi tiết:**\n`{account_info}`\n\n"
-                    f"⚠️ _Lưu ý: Hãy lưu lại ngay và đổi mật khẩu để đảm bảo an toàn!_"
-                ),
+               text=(
+            f"🔑 **THÔNG TIN TÀI KHOẢN BẠN VỪA MUA:**\n"
+            f"📌 **Sản phẩm:** `{product_name}`\n"
+            f"📦 **Chi tiết:**\n`{account_info}`\n\n"
+            f"⚠️ **Lưu ý:** ĐĂNG NHẬP THEO NỀN TẢNG BẠN MUA, ĐỔI THÔNG TIN NGAY SAU KHI MUA HÀNG THÀNH CÔNG.\n"
+            f"BOX TELE: https://t.me/+xY9ecaYXAwwyOGV1\n"
+            f"ADMIN: @fbnew2\n"
+            f"CÓ GÓP Ý XIN VUI LÒNG LIÊN HỆ ADMIN HOẶC GỬI GÓP Ý CỦA BẠN LÊN NHÓM\n"
+            f"TRÂN TRỌNG CẢM ƠN BẠN ĐÃ MUA HÀNG"
+          ),
+                ,
                 parse_mode="Markdown"
             )
         except Exception:
@@ -216,7 +221,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💚 **VPBANK:**\n"
             "• Số tài khoản: `020420098386`\n"
             "• Chủ tài khoản: **PHAM VAN TUNG**\n\n"
-            "📝 **Nội dung chuyển khoản (Bắt buộc):** `nap " + str(user_id) + "`"
+            "• NDCK(Bắt buộc):** `nap " + str(user_id) + "`"
         )
         keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
         await query.edit_message_text(recharge_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
