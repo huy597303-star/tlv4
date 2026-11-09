@@ -82,6 +82,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"Xin chào {update.effective_user.first_name}!\n"
         f"💰 Số dư hiện tại: {balance:,} VNĐ\n"
+        f"kính chào quý khách hàng tôi là bot bán hàng tự động phiên bản nâng cấp v4\n"
+        f"quý khách có vấn đề gì thắc mắc liên hệ admin để được hướng dẫn ạ\n"
+        f"admin user:@fbnew2\n"
+        f"group: https://t.me/+xY9ecaYXAwwyOGV1\n"
         f"Vui lòng chọn chức năng bên dưới:",
         reply_markup=reply_markup
     )
