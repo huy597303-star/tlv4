@@ -143,17 +143,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("buy_prod|"):
         product_name = data.split("|")[1]
         
-        # --- BẢNG GIÁ RIÊNG CHO TỪNG SẢN PHẨM ---
         prices = {
-            "gmail": 5000,        # Gmail giá 5k
-            "facebook": 2000,     # Facebook giá 2k
-            "tiktok": 2000,       # TikTok giá 2k
-            "instagram": 500,     # Instagram giá 500đ
-            "ig": 500,            # Bổ sung từ khóa ig
-            "hotmail": 1500,      # Hotmail giá 1.5k 
+            "gmail": 5000,
+            "facebook": 2000,
+            "tiktok": 2000,
+            "instagram": 500,
+            "ig": 500,
+            "hotmail": 1500,
         }
         
-        # Mặc định 2,000đ nếu không khớp từ khóa nào
         price_per_item = 2000
         for key, val in prices.items():
             if key in product_name.lower():
@@ -218,16 +216,32 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
     elif data == "recharge":
+        # Tạo URL VietQR tự động điền sẵn nội dung chuyển khoản là user_id của khách
+        qr_image_url = f"https://img.vietqr.io/image/vpb-020420098386-compact2.png?addInfo={user_id}&accountName=PHAM%20VAN%20TUNG"
+        
         recharge_text = (
             "💵 **HƯỚNG DẪN NẠP TIỀN TỰ ĐỘNG (24/7)**\n\n"
-            "Quý khách chuyển khoản theo thông tin bên dưới (Tiền sẽ được cộng tự động trong vài giây):\n\n"
+            "Quý khách quét mã QR bên trên (Nội dung chuyển khoản đã được tự động điền sẵn):\n\n"
             "💚 **VPBANK:**\n"
             "• Số tài khoản: `020420098386`\n"
             "• Chủ tài khoản: **PHAM VAN TUNG**\n"
-            "• NDCK(Bắt buộc):** `" + str(user_id) + "`"
+            "• Nội dung: `" + str(user_id) + "`\n\n"
+            "⚡ _Tiền sẽ được cộng tự động vào tài khoản sau vài giây kể từ khi giao dịch thành công!_"
         )
         keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
-        await query.edit_message_text(recharge_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+        
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+            
+        await context.bot.send_photo(
+            chat_id=user_id,
+            photo=qr_image_url,
+            caption=recharge_text,
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
     elif data == "me":
         balance = get_user_balance(user_id)
@@ -254,12 +268,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("💵 Nạp tiền", callback_data="recharge")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(
-            f"Xin chào {query.from_user.first_name}!\n"
-            f"💰 Số dư hiện tại: {balance:,} VNĐ\n"
-            f"Vui lòng chọn chức năng bên dưới:",
-            reply_markup=reply_markup
-        )
+        
+        try:
+            await query.message.delete()
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"Xin chào {query.from_user.first_name}!\n💰 Số dư hiện tại: {balance:,} VNĐ\nVui lòng chọn chức năng bên dưới:",
+                reply_markup=reply_markup
+            )
+        except Exception:
+            await query.edit_message_text(
+                f"Xin chào {query.from_user.first_name}!\n"
+                f"💰 Số dư hiện tại: {balance:,} VNĐ\n"
+                f"Vui lòng chọn chức năng bên dưới:",
+                reply_markup=reply_markup
+            )
 
 # ----------------- ADMIN COMMANDS ----------------- #
 async def admin_import_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -362,7 +385,7 @@ async def handle_sepay_webhook(request):
         amount = int(data.get("transferAmount", 0))
         content = data.get("content", "")
         
-        match = re.search(r'nap\s*(\d+)', content, re.IGNORECASE)
+        match = re.search(r'(\d+)', content)
         if match:
             target_user_id = int(match.group(1))
             update_user_balance(target_user_id, amount)
@@ -398,19 +421,16 @@ async def handle_sepay_webhook(request):
 async def main():
     app = Application.builder().token(TOKEN).build()
 
-    # Đăng ký các lệnh User & Admin
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("import", admin_import_file))
     app.add_handler(CommandHandler("themacc", admin_add_account))
     app.add_handler(CommandHandler("cong", admin_add_money))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # Khởi tạo Telegram Bot Runner
     await app.initialize()
     await app.start()
     await app.updater.start_polling()
 
-    # Tạo server HTTP Webhook cho SePay
     web_app = web.Application()
     web_app['bot'] = app.bot
     web_app.router.add_post('/sepay-webhook', handle_sepay_webhook)
