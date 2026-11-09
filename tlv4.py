@@ -222,7 +222,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💚 **VPBANK:**\n"
             "• Số tài khoản: `020420098386`\n"
             "• Chủ tài khoản: **PHAM VAN TUNG**\n\n"
-            "• NDCK (Bắt buộc):** `" + str(user_id) + "`"
+            "• NDCK (Bắt buộc):**`" + str(user_id) + "`"
         )
         keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
         await query.edit_message_text(recharge_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
