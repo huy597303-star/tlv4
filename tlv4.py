@@ -228,17 +228,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         keyboard = [[InlineKeyboardButton("🔙 Quay lại trang chủ", callback_data="home")]]
         
-        await context.bot.send_photo(
-            chat_id=user_id,
-            photo=qr_image_url,
-            caption=recharge_text,
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
         try:
+            await context.bot.send_photo(
+                chat_id=user_id,
+                photo=qr_image_url,
+                caption=recharge_text,
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
             await query.message.delete()
         except Exception:
-            pass
+            await query.message.reply_text(
+                text=recharge_text,
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
 
     elif data == "me":
         balance = get_user_balance(user_id)
