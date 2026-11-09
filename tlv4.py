@@ -216,30 +216,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
     elif data == "recharge":
-        qr_image_url = f"https://img.vietqr.io/image/vpb-020420098386-compact2.png?addInfo={user_id}&accountName=PHAM%20VAN%20TUNG"
-        
         recharge_text = (
             "💵 **HƯỚNG DẪN NẠP TIỀN TỰ ĐỘNG (24/7)**\n\n"
-            "Quý khách quét mã QR bên trên (Nội dung chuyển khoản đã được tự động điền sẵn):\n\n"
+            "Quý khách chuyển khoản theo thông tin bên dưới (Tiền sẽ được cộng tự động trong vài giây):\n\n"
             "💚 **VPBANK:**\n"
             "• Số tài khoản: `020420098386`\n"
-            "• Chủ tài khoản: **PHAM VAN TUNG**\n"
-            "• Nội dung: `" + str(user_id) + "`\n\n"
-            "⚡ _Tiền sẽ được cộng tự động vào tài khoản sau vài giây kể từ khi giao dịch thành công!_"
+            "• Chủ tài khoản: **PHAM VAN TUNG**\n\n"
+            "• NDCK (Bắt buộc):** `" + str(user_id) + "`"
         )
-        keyboard = [[InlineKeyboardButton("🔙 Quay lại trang chủ", callback_data="home")]]
-        
-        await context.bot.send_photo(
-            chat_id=user_id,
-            photo=qr_image_url,
-            caption=recharge_text,
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        try:
-            await query.message.delete()
-        except Exception:
-            pass
+        keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
+        await query.edit_message_text(recharge_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "me":
         balance = get_user_balance(user_id)
@@ -266,21 +252,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("💵 Nạp tiền", callback_data="recharge")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        text_home = (
+        await query.edit_message_text(
             f"Xin chào {query.from_user.first_name}!\n"
             f"💰 Số dư hiện tại: {balance:,} VNĐ\n"
-            f"Vui lòng chọn chức năng bên dưới:"
-        )
-        
-        await context.bot.send_message(
-            chat_id=user_id,
-            text=text_home,
+            f"Vui lòng chọn chức năng bên dưới:",
             reply_markup=reply_markup
         )
-        try:
-            await query.message.delete()
-        except Exception:
-            pass
 
 # ----------------- ADMIN COMMANDS ----------------- #
 async def admin_import_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -447,4 +424,3 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
-    
