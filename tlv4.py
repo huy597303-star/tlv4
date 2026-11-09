@@ -116,7 +116,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text += f"• 📌 **{p_name}**: Còn **{count}** tài khoản\n"
         
         keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
-        await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+        try:
+            await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception:
+            await query.message.delete()
+            await context.bot.send_message(chat_id=user_id, text=text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "buy_menu":
         conn = sqlite3.connect("bot_store.db")
@@ -130,7 +134,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.close()
 
         if not items:
-            await query.edit_message_text("❌ Hiện chưa có sản phẩm nào có sẵn để mua!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]))
+            keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
+            try:
+                await query.edit_message_text("❌ Hiện chưa có sản phẩm nào có sẵn để mua!", reply_markup=InlineKeyboardMarkup(keyboard))
+            except Exception:
+                await query.message.delete()
+                await context.bot.send_message(chat_id=user_id, text="❌ Hiện chưa có sản phẩm nào có sẵn để mua!", reply_markup=InlineKeyboardMarkup(keyboard))
             return
 
         keyboard = []
@@ -138,7 +147,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append([InlineKeyboardButton(f"🛒 Mua: {p_name}", callback_data=f"buy_prod|{p_name}")])
         keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data="home")])
         
-        await query.edit_message_text("🛒 **CHỌN SẢN PHẨM BẠN MUỐN MUA:**", parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+        try:
+            await query.edit_message_text("🛒 **CHỌN SẢN PHẨM BẠN MUỐN MUA:**", parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception:
+            await query.message.delete()
+            await context.bot.send_message(chat_id=user_id, text="🛒 **CHỌN SẢN PHẨM BẠN MUỐN MUA:**", parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("buy_prod|"):
         product_name = data.split("|")[1]
@@ -160,11 +173,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         user_balance = get_user_balance(user_id)
         if user_balance < price_per_item:
-            await query.edit_message_text(
-                f"❌ **Số dư không đủ!**\nSản phẩm: `{product_name}`\nGiá: {price_per_item:,} VNĐ\nSố dư của bạn: {user_balance:,} VNĐ",
-                parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💳 Nạp tiền", callback_data="recharge"), InlineKeyboardButton("🔙 Quay lại", callback_data="buy_menu")]])
-            )
+            keyboard = [[InlineKeyboardButton("💳 Nạp tiền", callback_data="recharge"), InlineKeyboardButton("🔙 Quay lại", callback_data="buy_menu")]]
+            text_err = f"❌ **Số dư không đủ!**\nSản phẩm: `{product_name}`\nGiá: {price_per_item:,} VNĐ\nSố dư của bạn: {user_balance:,} VNĐ"
+            try:
+                await query.edit_message_text(text_err, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+            except Exception:
+                await query.message.delete()
+                await context.bot.send_message(chat_id=user_id, text=text_err, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
             return
 
         conn = sqlite3.connect("bot_store.db")
@@ -179,7 +194,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if not acc:
             conn.close()
-            await query.edit_message_text("❌ Rất tiếc, loại tài khoản này vừa hết hàng!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Quay lại", callback_data="buy_menu")]]))
+            keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="buy_menu")]]
+            try:
+                await query.edit_message_text("❌ Rất tiếc, loại tài khoản này vừa hết hàng!", reply_markup=InlineKeyboardMarkup(keyboard))
+            except Exception:
+                await query.message.delete()
+                await context.bot.send_message(chat_id=user_id, text="❌ Rất tiếc, loại tài khoản này vừa hết hàng!", reply_markup=InlineKeyboardMarkup(keyboard))
             return
 
         acc_id, account_info = acc
@@ -188,14 +208,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
         conn.close()
 
-        await query.edit_message_text(
+        keyboard = [[InlineKeyboardButton("🔙 Về trang chủ", callback_data="home")]]
+        text_succ = (
             f"✅ **MUA TÀI KHOẢN THÀNH CÔNG!**\n\n"
             f"📌 **Sản phẩm:** `{product_name}`\n"
             f"💰 **Trừ số dư:** {price_per_item:,} VNĐ\n\n"
-            f"🔒 _Thông tin tài khoản bảo mật đã được gửi riêng vào tin nhắn cho bạn._",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Về trang chủ", callback_data="home")]])
+            f"🔒 _Thông tin tài khoản bảo mật đã được gửi riêng vào tin nhắn cho bạn._"
         )
+        try:
+            await query.edit_message_text(text_succ, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception:
+            await query.message.delete()
+            await context.bot.send_message(chat_id=user_id, text=text_succ, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
         try:
             await context.bot.send_message(
@@ -230,6 +254,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
         
+        # Gửi tin nhắn chứa ảnh QR mới hoàn toàn và xóa tin nhắn menu cũ để tránh rối giao diện
         try:
             await query.message.delete()
         except Exception:
@@ -245,20 +270,26 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "me":
         balance = get_user_balance(user_id)
-        await query.edit_message_text(
+        keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
+        text_me = (
             f"👤 **THÔNG TIN TÀI KHOẢN**\n\n"
             f"🆔 Telegram ID: `{user_id}`\n"
-            f"💰 Số dư hiện tại: **{balance:,} VNĐ**",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]])
+            f"💰 Số dư hiện tại: **{balance:,} VNĐ**"
         )
+        try:
+            await query.edit_message_text(text_me, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception:
+            await query.message.delete()
+            await context.bot.send_message(chat_id=user_id, text=text_me, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "history":
-        await query.edit_message_text(
-            f"📜 **LỊCH SỬ GIAO DỊCH**\n\nTính năng đang được cập nhật...",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]])
-        )
+        keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
+        text_his = f"📜 **LỊCH SỬ GIAO DỊCH**\n\nTính năng đang được cập nhật..."
+        try:
+            await query.edit_message_text(text_his, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception:
+            await query.message.delete()
+            await context.bot.send_message(chat_id=user_id, text=text_his, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "home":
         balance = get_user_balance(user_id)
@@ -268,21 +299,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("💵 Nạp tiền", callback_data="recharge")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
+        text_home = (
+            f"Xin chào {query.from_user.first_name}!\n"
+            f"💰 Số dư hiện tại: {balance:,} VNĐ\n"
+            f"Vui lòng chọn chức năng bên dưới:"
+        )
         
+        # Xóa tin nhắn hiện tại (dù là ảnh QR hay tin nhắn chữ cũ) và gửi lại menu chính dạng chữ sạch sẽ
         try:
             await query.message.delete()
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=f"Xin chào {query.from_user.first_name}!\n💰 Số dư hiện tại: {balance:,} VNĐ\nVui lòng chọn chức năng bên dưới:",
-                reply_markup=reply_markup
-            )
         except Exception:
-            await query.edit_message_text(
-                f"Xin chào {query.from_user.first_name}!\n"
-                f"💰 Số dư hiện tại: {balance:,} VNĐ\n"
-                f"Vui lòng chọn chức năng bên dưới:",
-                reply_markup=reply_markup
-            )
+            pass
+            
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=text_home,
+            reply_markup=reply_markup
+        )
 
 # ----------------- ADMIN COMMANDS ----------------- #
 async def admin_import_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
