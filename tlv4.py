@@ -18,7 +18,7 @@ logging.basicConfig(
 )
 
 # ----------------- CẤU HÌNH HỆ THỐNG ----------------- #
-TOKEN = "9291585542:AAFkdq6uxLvRsZLI2NKyN4Dxr-rONDe0kdM"
+TOKEN = "9200811624:AAFflb-smy0jfgJTInv7pBqlPnDUR0vvHUU"
 ADMIN_IDS = [9047366482]
 SEPAY_API_TOKEN = "9OAOWJ7EPNEIWSUMZ93V0OACREYI8U3JTFWS1LG7WVSK4DSCUCFZIX6XHFQNBE18"
 
@@ -216,6 +216,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
     elif data == "recharge":
+        # Tạo mã QR động riêng biệt cho từng user
         qr_image_url = f"https://img.vietqr.io/image/vpb-020420098386-compact2.png?addInfo={user_id}&accountName=PHAM%20VAN%20TUNG"
         
         recharge_text = (
@@ -386,7 +387,8 @@ async def handle_sepay_webhook(request):
         amount = int(data.get("transferAmount", 0))
         content = data.get("content", "")
         
-        match = re.search(r'(\d+)', content)
+        # Regex thông minh bắt chính xác Telegram ID (9 đến 11 chữ số), bỏ qua số tiền nạp
+        match = re.search(r'\b(\d{9,11})\b', content)
         if match:
             target_user_id = int(match.group(1))
             update_user_balance(target_user_id, amount)
