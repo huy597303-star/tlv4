@@ -149,7 +149,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "insstagram": 3000,
         }
         
-        price_per_item = 2000
+        price_per_item = 3000
         for key, val in prices.items():
             if key in product_name.lower():
                 price_per_item = val
