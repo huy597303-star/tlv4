@@ -146,7 +146,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         prices = {
             "facebook": 2000,
             "tiktok": 2000,
-            "ig": 3000,
+            "insstagram": 3000,
         }
         
         price_per_item = 2000
