@@ -144,7 +144,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         product_name = data.split("|")[1]
         
         prices = {
-            "facebook": 3000,
+            "facebook": 3500,
             "tiktok": 2000,
             "insstagram": 3000,
         }
